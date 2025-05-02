@@ -1,0 +1,12 @@
+{
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/Arvi89/be-bound-php-sdk"
+        }
+    ],
+    "require": {
+        "guzzlehttp/guzzle": "*",
+        "be-bound/sdk-php": "dev-master#fa23416"
+    }
+}
