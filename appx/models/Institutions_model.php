@@ -81,7 +81,7 @@
     }
 
     public function insererClients($typeEntrepriseID, $nom_entreprise,
-    $respo_entreprise, $situationGeoEntreprise, $contact_entreprise, $email_entreprise, 
+    $respo_entreprise, $situationGeoEntreprise, $contact_entreprise,$contact2_entreprise, $email_entreprise, 
     $communeEntrepriseId, $isAgree, $nom_users, $prenoms_users)
     {               
          $villeEntrepriseId = $this->isCommunes($communeEntrepriseId)->villeCommuneFK;
@@ -89,7 +89,7 @@
                           ->set('situationGeoEntreprise', $situationGeoEntreprise)
                           ->set('respo_entreprise', $respo_entreprise)
                           ->set('typeEntrepriseID', $typeEntrepriseID)
-                          ->set('contact2_entreprise', $contact_entreprise)
+                          ->set('contact2_entreprise', $contact2_entreprise)
                           ->set('isAgree', $isAgree)
                           ->set('communeEntrepriseId', $communeEntrepriseId)
                           ->set('contact_entreprise', $contact_entreprise)

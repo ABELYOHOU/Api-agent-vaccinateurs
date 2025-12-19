@@ -21,6 +21,9 @@ public function getReversements($entID)
   // $entID = $this->session->userdata('entID'); 
    $query = $this->db->select('*')
                      ->from($this->table_reversement)
+                      ->join('entreprise', 'entreprise.id_entreprise = reversements.entReversID', 'left')
+                    ->join('districts', 'districts.idDistricts = entreprise.districtEntrepriseId', 'left')
+                   ->join('mode_paiement', 'mode_paiement.id_mode_paiement = reversements.modeReversID', 'left')
                      ->where('reversements.entReversID', $entID)
                      ->where('reversements.etatRevers !=', 'S')
                       ->where('reversements.wavePaymentStatus', 'succeeded')
@@ -28,6 +31,9 @@ public function getReversements($entID)
                      ->get();
         return $query->result();
 }
+
+ 
+
 
 
 

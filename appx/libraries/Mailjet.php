@@ -12,7 +12,7 @@ class Mailjet
             'Messages' => [
                 [
                     'From' => [
-                        'Email' => "info.2imservices@gmail.com",
+                        'Email' => "vaccipha@enovpharm.com",
                         'Name' => "VACCIPHA CÔTE D'IVOIRE"
                     ],
                     'To' => [
@@ -36,30 +36,21 @@ class Mailjet
            curl_setopt($ch, CURLOPT_RETURNTRANSFER,true);
            curl_setopt($ch, CURLOPT_POST, 1);
            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-           curl_setopt($ch, CURLOPT_USERPWD, "6037bd1bb23d64b7f9ab83c99f32f23c:3d9a70176f7472c3c5f315f47bcb4d4d");
+           curl_setopt($ch, CURLOPT_USERPWD, "2bf5237cd09a365ca7805674687411f0:0728dba8eb1634d03f608f3420881b7e");
            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($paramsend));
            $response = json_decode(curl_exec($ch));
+
+
            $err = curl_error($ch);
            curl_close ($ch);
 
-           if ($response)
-           {
-               foreach ($response as $reponses)
-               {  
-                  foreach ($reponses as $valeurs)
-                  { 
-                      $valeurs = $valeurs->To;
-                      foreach ($valeurs as $resp)
-                      {
-                          $messageid = $resp->MessageID;
-                          $email = $resp->Email;
-                      }
-                  }
-               }
-           }
+           var_dump($response);
+           exit();
+
+           
 
 
-          return $messageid;
+          return true;
 
            
     }

@@ -27,10 +27,22 @@ public function login_post()
 		$query = $this->authModel->isIdentifier($login, $password);
 		if ($query) 
 		{	
-			$this->globalModel->createConnectivite($query->id_users);
-			$response['code']=1;
-		    $response['data']=$query;
-		    $response['msg']="Bienvenue sur Vaccipha !";
+            $getConnectivite = $this->globalModel->getConnectivites($query->id_users);
+			if ($getConnectivite) 
+			{
+				$this->globalModel->createConnectivite($query->id_users);
+				$response['code']=1;
+			    $response['data']=$query;
+			    $response['msg']="Bienvenue sur Vaccipha !";
+			}
+			else
+			{
+				//Diriger le client vers la page de changement de mot de passe par défaut
+				$response['code']=1;
+			    $response['data']=$query;
+			    $response['msg']="Bienvenu(e) sur Vaccipha !";
+			}
+
 		}
 		else
 		{	
@@ -49,6 +61,75 @@ public function login_post()
 
 	return $this->response($response, REST_Controller::HTTP_OK);
 }
+
+
+//  mettre a jour le mot de pass a la 1er connexion
+
+public function majPassword_post()
+{ 
+    if (!empty($this->input->post('rpassword')) && !empty($this->input->post('password')) 
+    	&& !empty($this->input->post('idLogin'))) 
+	{	
+        $rpassword = $this->input->post('rpassword');
+        $password = $this->input->post('password');
+        $idLogin = $this->input->post('idLogin');
+	    
+	    $getVisiteurs = $this->authModel->getMonCompte($this->input->post('idLogin'));
+		if (empty($getVisiteurs)) 
+		{
+			$response['code']=0;
+	  		$response['data']= '';
+	  		$response['msg']="utilisateur Non Connecté !";
+		}
+		else
+		{	
+			if ($this->input->post('password') == $this->input->post('rpassword'))
+	        {
+	            if (strlen($this->input->post('password')) >= 6)
+	            {	
+	                $completed = $this->authModel->changer_mot_passe($idLogin, $this->input->post('password'));
+	                if ($completed)
+	                {  
+	                    $this->globalModel->createConnectivite($idLogin);
+				  		$response['code']=1;
+				  		$response['data']= '';
+				  		$response['msg']="Succès, Mot de passe modifié !";
+	                }
+	                else
+	                { 
+	                    $response['code']=0;
+				  		$response['data']= '';
+				  		$response['msg']="Veuillez réessayer plus tard SVP !";
+	                }
+	            }
+	            else
+	            { 
+	                $response['code']=0;
+			  		$response['data']= '';
+			  		$response['msg']="Longueur de mot de passe incorrecte !";
+	            }
+	        }
+	        else
+	        { 
+	            $response['code']=0;
+		  		$response['data']= '';
+		  		$response['msg']="Les Mots de Passe Sont Différents !";
+  	     	}
+		}
+    }
+	else
+	{
+		$response['code']=0;
+	    $response['data']= '';
+	    $response['msg']="Vérifier les variables envoyées";
+	}
+
+	return $this->response($response, REST_Controller::HTTP_OK);
+}
+
+
+
+
 
 public function password_post()
 {
@@ -104,7 +185,7 @@ public function password_post()
 public function createCompteEntreprises_post()
 {	
 	//log_message('info', $this->input->post('nom_visiteurs'));
-	if (!empty($this->input->post('typeEntrepriseID')) AND !empty($this->input->post('respo_entreprise')) AND !empty($this->input->post('contact_entreprise')) AND !empty($this->input->post('isAgree')) AND !empty($this->input->post('communeID'))AND !empty($this->input->post('nom_entreprise')) AND !empty($this->input->post('email_entreprise')) AND !empty($this->input->post('situationGeoEntreprise')))
+	if (!empty($this->input->post('typeEntrepriseID')) AND !empty($this->input->post('respo_entreprise')) AND !empty($this->input->post('contact_entreprise')) AND !empty($this->input->post('contact2_entreprise')) AND !empty($this->input->post('isAgree')) AND !empty($this->input->post('communeID'))AND !empty($this->input->post('nom_entreprise')) AND !empty($this->input->post('email_entreprise')) AND !empty($this->input->post('situationGeoEntreprise')))
 	{		
 
 
@@ -118,13 +199,14 @@ public function createCompteEntreprises_post()
 
 
 		$contact_entreprise = $this->input->post('contact_entreprise');
+		$contact2_entreprise = $this->input->post('contact2_entreprise');
 		$email_entreprise = $this->input->post('email_entreprise');
 		$situationGeoEntreprise = $this->input->post('situationGeoEntreprise');
 		$nom_entreprise = $this->input->post('nom_entreprise');
 		$typeEntrepriseID = $this->input->post('typeEntrepriseID');
 
-        $getPhone = $this->globalModel->getCodeMobile($contact_entreprise);
-        $query = $this->authModel->existeEntreprises($contact_entreprise, $email_entreprise);
+        $getPhone = $this->globalModel->getCodeMobile($contact_entreprise,$contact2_entreprise);
+        $query = $this->authModel->existeEntreprises($contact_entreprise,$contact2_entreprise, $email_entreprise);
         // Check that data was sent to the mailer.
         $getNomVisiteurs = $this->globalModel->jeBloqueLesFauxComptes($nom_users);
 	    $getPreNomsVisiteurs = $this->globalModel->jeBloqueLesFauxComptes($prenoms_users);
@@ -164,7 +246,7 @@ public function createCompteEntreprises_post()
 		{	
 			$isAgree = 1;
 	    	$addingRes = $this->instModel->insererClients($typeEntrepriseID, $nom_entreprise,
-            $respo_entreprise, $situationGeoEntreprise, $contact_entreprise, $email_entreprise, 
+            $respo_entreprise, $situationGeoEntreprise, $contact_entreprise, $contact2_entreprise, $email_entreprise, 
             $communeID, $isAgree, $nom_users, $prenoms_users);
 
 			if ($addingRes) 
@@ -240,73 +322,38 @@ public function reinitialize_post()
 			  	    $getMiseJours = $this->authModel->changer_mot_passe($id_users, $mot_de_passe);
 			  		if ($getMiseJours)
 				  	{
-				  		$curl = curl_init();
-						curl_setopt_array($curl, array(
-						  CURLOPT_URL => 'https://api.orange.com/oauth/v3/token',
-						  CURLOPT_RETURNTRANSFER => true,
-						  CURLOPT_ENCODING => '',
-						  CURLOPT_MAXREDIRS => 10,
-						  CURLOPT_TIMEOUT => 0,
-						  CURLOPT_FOLLOWLOCATION => true,
-						  CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-						  CURLOPT_CUSTOMREQUEST => 'POST',
-						  CURLOPT_POSTFIELDS => 'grant_type=client_credentials',
-						  CURLOPT_HTTPHEADER => array(
-						    'Content-Type: application/x-www-form-urlencoded',
-						    'Authorization: Basic ZUFYOFpMRnRhbnBFMDFjcjZwRnl4dExZeHZrb3lOcGo6NjlrQkYzNmZGa1RyTXpLbQ=='
-						  ),
-						));
-						$response1 = json_decode(curl_exec($curl), true);
-						curl_close($curl);
-						if (isset($response1["access_token"]))
-						{
-							$emailClient = str_replace(array(' ', '-'), '', $loginLogin);
-				  			$message = "Bonjour. Votre mot de passe temporaire est $mot_de_passe";
-							$ch = curl_init();
-							curl_setopt_array($ch, array(
-							  CURLOPT_URL => 'https://api.orange.com/smsmessaging/v1/outbound/tel%3A%2B2250000/requests',
-							  CURLOPT_RETURNTRANSFER => true,
-							  CURLOPT_ENCODING => '',
-							  CURLOPT_MAXREDIRS => 10,
-							  CURLOPT_TIMEOUT => 0,
-							  CURLOPT_FOLLOWLOCATION => true,
-							  CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-							  CURLOPT_CUSTOMREQUEST => 'POST',
-							  CURLOPT_POSTFIELDS =>'{
-								"outboundSMSMessageRequest": {
-									"address": "tel:'.$emailClient.'",
-									"senderAddress":"tel:+2250000",
-									"senderName":"VACCIPHA",
-									"outboundSMSTextMessage": {
-										"message": "'.$message.'"
-									}
-								}
-							}',
-							  CURLOPT_HTTPHEADER => array(
-							    'Content-Type: application/json',
-							    'Authorization: Bearer '.$response1["access_token"].''
-							  ),
-							));
-							$resultats = json_decode(curl_exec($ch), true);
-							curl_close($ch);
-							if(isset($resultats["outboundSMSMessageRequest"]["resourceURL"]))
-					        {
-					        	$response['code']=1;
-						        $response['data']= '';
-						        $response['msg']="Succès, Consulter votre mobile !";
-						    }
-						    else
-						    {
-								$response['code']=0;
-					        	$response['data']= '';
-					        	$response['msg']="L'utilisateur n'a pas pu être notifié !";
-						    }	
-						}
-						else
+				  		$message = 'Bonjour.%20Votre%20mot%20de%20passe%20est%20:%20'.$mot_de_passe.'';				
+			  			$mobile_visiteurs = str_replace('+', '', $emailClient);
+
+			            $curl = curl_init();
+			            curl_setopt_array($curl, array(
+			              CURLOPT_URL => 'https://app.smspro.africa/api/v3/sms/send?recipient='.$mobile_visiteurs.'&sender_id=VACCIPHA&type=plain&message='.$message.'',
+			              CURLOPT_RETURNTRANSFER => true,
+			              CURLOPT_ENCODING => '',
+			              CURLOPT_MAXREDIRS => 10,
+			              CURLOPT_TIMEOUT => 0,
+			              CURLOPT_FOLLOWLOCATION => true,
+			              CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+			              CURLOPT_CUSTOMREQUEST => 'POST',
+			              CURLOPT_HTTPHEADER => array(
+			                'Authorization: Bearer 991|thLHOMOtvWj4QoXNrhvhrdXQN981PrFtOIIHhHAVcc6c4e0b',
+			                'Content-Type: application/json',
+			                'Accept: application/json'
+			              ),
+			            ));
+			            $response1 = json_decode(curl_exec($curl), true);
+			            curl_close($curl);
+						if (isset($response1['status']) && $response1['status'] == "success")
+				        {
+				        	$response['code']=1;
+					        $response['data']= '';
+					        $response['msg']="Succès, Consulter votre mobile !";
+					    }
+					    else
 					    {
 							$response['code']=0;
 				        	$response['data']= '';
-				        	$response['msg']="Prière contacter le service support SVP !";
+				        	$response['msg']="L'utilisateur n'a pas pu être notifié !";
 					    }		
 			       
 				    }

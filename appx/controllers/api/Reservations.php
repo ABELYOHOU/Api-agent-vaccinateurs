@@ -19,6 +19,92 @@ public function __construct()
 	$this->load->model('Reservations_model', 'resModel');
 }
 
+
+public function getMontantAPayer_post()
+{
+	if (!empty($this->input->post('idLogin')) AND !empty($this->input->post('entID')))
+	{	
+		$entID = $this->input->post('entID');
+		$idLogin = $this->input->post('idLogin');
+		
+
+		$getVisiteurs = $this->authModel->getMonCompte($idLogin);
+		if (empty($getVisiteurs)) 
+		{
+			$response['code']=0;
+	  		$response['data']= '';
+	  		$response['msg']="Ce utilisateur est inconnu !";
+		}
+		else
+		{	
+
+
+			$getGlobalChiffres = $this->resModel->getMontantAverser($entID);
+			
+
+			if (empty($getGlobalChiffres)) 
+			{
+				
+				$sommeGlobalChiffres = 0;
+			}
+			else
+			{
+				
+				$sommeGlobalChiffres = (float)$getGlobalChiffres->montant*0.3;
+	
+			}
+
+
+			$response['code']=1;
+		    $response['data']= $sommeGlobalChiffres;
+		    $response['msg']="Connecté(e) !";
+		}
+	}
+	else
+	{
+		$response['code']=0;
+        $response['data']= '';
+        $response['msg']="Vérifier les variables envoyées";
+	}
+
+	return $this->response($response, REST_Controller::HTTP_OK);
+}
+
+public function getMontantNonReverser_post()
+{
+	if (!empty($this->input->post('idLogin')) AND !empty($this->input->post('entID')))
+	{	
+		$entID = $this->input->post('entID');
+		$idLogin = $this->input->post('idLogin');
+		
+
+		$getVisiteurs = $this->authModel->getMonCompte($idLogin);
+		if (empty($getVisiteurs)) 
+		{
+			$response['code']=0;
+	  		$response['data']= '';
+	  		$response['msg']="Ce utilisateur est inconnu !";
+		}
+		else
+		{	
+
+
+			$getGlobalChiffres = $this->resModel->getRemboursementParMois($entID);
+			$response['code']=1;
+		    $response['data']= $getGlobalChiffres;
+		    $response['msg']="Connecté(e) !";
+		}
+	}
+	else
+	{
+		$response['code']=0;
+        $response['data']= '';
+        $response['msg']="Vérifier les variables envoyées";
+	}
+
+	return $this->response($response, REST_Controller::HTTP_OK);
+}
+
 public function getListeRDVsForMapisByPatientsId_post()
 {
 	if (!empty($this->input->post('entID')) AND !empty($this->input->post('idLogin')) AND !empty($this->input->post('idPatients')))
@@ -71,7 +157,7 @@ public function getListePaiementsByFiltre_post()
 			if (empty($getVisiteurs)) 
 			{
 				  $response['code']=0;
-		  		$response['data']= array();
+		  		$response['data']= '';
 		  		$response['msg']="Ce compte est inconnu !";
 			}
 			else
@@ -102,7 +188,7 @@ public function getListePaiementsByFiltre_post()
 						else
 						{
 							$response['code']=0;
-							$response['data']=array();
+							$response['data']= '';
 							$response['msg']="Aucun paiement filtré !";
 						}
 			}
@@ -205,7 +291,7 @@ public function getListeTotalRDVsEtRappels_post()
 				if (empty($getVisiteurs)) 
 				{
 					  $response['code']=0;
-			  		$response['data']= '';
+			  		$response['data']= array();
 			  		$response['msg']="Ce utilisateur est inconnu !";
 				}
 				else
@@ -219,6 +305,37 @@ public function getListeTotalRDVsEtRappels_post()
 		else
 		{
 					$response['code']=0;
+	        $response['data']= array();
+	        $response['msg']="Vérifier les variables envoyées";
+		}
+
+		return $this->response($response, REST_Controller::HTTP_OK);
+}
+
+public function getListeTotalRDVsEtRappelsEnCours_post()
+{
+		if (!empty($this->input->post('entID')) AND !empty($this->input->post('idLogin')))
+		{	
+				$entID = $this->input->post('entID');
+				$idLogin = $this->input->post('idLogin');
+				$getVisiteurs = $this->authModel->getMonCompte($idLogin);
+				if (empty($getVisiteurs)) 
+				{
+					  $response['code']=0;
+			  		$response['data']= '';
+			  		$response['msg']="Ce utilisateur est inconnu !";
+				}
+				else
+				{	
+					  $getLastReservations = $this->resModel->getListeTotalRDVsEtRappelsEnCours($entID);
+					  $response['code']=1;
+				    $response['data']= $getLastReservations;
+				    $response['msg']="Liste affichée !";
+				}
+		}
+		else
+		{
+			$response['code']=0;
 	        $response['data']= '';
 	        $response['msg']="Vérifier les variables envoyées";
 		}
@@ -281,16 +398,19 @@ public function getRDVsEtRappelsByTypeRes_post()
 		}
 		else
 		{	
-			if ($typeResCode == 'RAPPELS') 
+			//if ($typeResCode == 'RAPPELS') 
+			if ($typeResCode == 'RAPPELS ET RDVs À VENIR') 
 			{
-				$typeResCodeS = 'R';
+				//$typeResCodeS = 'R';
+				$status_res = 'P';
 			}
 			else
 			{
-				$typeResCodeS = 'V';
+				//$typeResCodeS = 'V';
+				$status_res = 'S';
 			}
 
-			$getLastReservations = $this->resModel->getRDVsEtRappelsByTypeRes($entID, $typeResCodeS);
+			$getLastReservations = $this->resModel->getRDVsEtRappelsByTypeRes($entID, $status_res);
 			$response['code']=1;
 		    $response['data']= $getLastReservations;
 		    $response['msg']="Liste affichée par type !";
@@ -518,9 +638,6 @@ public function creerResToutVenantsMoMo_post()
           $idPlageHoraires = 3;
 
           $canalID = $this->input->post('canalID');
-          if (empty($canalID)) {
-          	$canalID = 8;
-          }
 
           $existance = $this->resModel->isCodeRes($code_res);
           $getVisiteurs = $this->authModel->getMonCompte($idLogin);
@@ -688,8 +805,7 @@ public function creerResToutVenantsMoMo_post()
 	return $this->response($response, REST_Controller::HTTP_OK);
 }
 
-
-public function creerCommandesToutVenants_post()
+public function creerResToutVenantsRdvPlutardMoMo_post()
 {	
 
 	//var_dump($_POST);
@@ -697,7 +813,8 @@ public function creerCommandesToutVenants_post()
 	if (!empty($this->input->post('idLogin')) AND !empty($this->input->post('mobilePatients')) 
 		AND !empty($this->input->post('idVaccins')) AND !empty($this->input->post('sousVaccinsID')) 
 		AND !empty($this->input->post('catVaccinsID')) AND !empty($this->input->post('entID')) 
-		AND !empty($this->input->post('nomPatients')) AND !empty($this->input->post('sexePatients'))
+		AND !empty($this->input->post('nomPatients')) AND !empty($this->input->post('date_res_deb'))
+		 AND !empty($this->input->post('sexePatients'))
 	  AND !empty($this->input->post('idCommunes')))
 	{	
 		  $code_res = 'V'.$this->globalModel->generateUnik();
@@ -712,11 +829,6 @@ public function creerCommandesToutVenants_post()
           //var_dump($idVaccins);
           //exit();
 
-          $canalID = $this->input->post('canalID');
-          if (empty($canalID)) {
-          	$canalID = 8;
-          }
-
           $nomPatients = $this->input->post('nomPatients');
           $sexePatients = $this->input->post('sexePatients');
           $mobilePatients = $this->input->post('mobilePatients');
@@ -725,9 +837,11 @@ public function creerCommandesToutVenants_post()
           $catVaccinsID = $this->input->post('catVaccinsID');
           $sousVaccinsID = $this->input->post('sousVaccinsID');
 
-          $date_res_deb = date("Y-m-d H:00:00");
-          $date_res_end = date("Y-m-d H:00:00", strtotime("$date_res_deb +1 hours"));
+          $date_res_deb = $this->input->post('date_res_deb');
+          $date_res_end = date("Y-m-d 10:00:00", strtotime("$date_res_deb +1 hours"));
           $idPlageHoraires = 3;
+
+          $canalID = $this->input->post('canalID');
 
           $existance = $this->resModel->isCodeRes($code_res);
           $getVisiteurs = $this->authModel->getMonCompte($idLogin);
@@ -782,7 +896,7 @@ public function creerCommandesToutVenants_post()
               $idCommunes, $mot_de_passe, $idLogin, $catVaccinsID, $sousVaccinsID);
 
 
-              $resID = $this->resModel->createResTransVaccins($code_res, $entID, $ClientsId, 
+              $resID = $this->resModel->createResPlusTardPaieMobileMoney($code_res, $entID, $ClientsId, 
               $montant_res, $date_res_deb, $date_res_end, $idPlageHoraires, 
               $sousVaccinsID, $catVaccinsID, count($idVaccins), null, $idLogin, $numeroLots);
 
@@ -874,6 +988,371 @@ public function creerCommandesToutVenants_post()
 				$this->authModel->createCanalPatients($ClientsId, $canalID);
 
 	            $response['code']=1;
+		        $response['data']=$code_res;
+		        $response['msg']="Succès, Votre RDV est enregistré !";
+	             
+          }
+          else
+          {
+                $response['code']=0;
+	      		$response['data']='';
+	      		$response['msg']="Erreur système, Veuillez reprendre SVP !";
+          }
+	}
+	else
+	{
+		$response['code']=0;
+        $response['data']= '';
+        $response['msg']="Vérifier les variables envoyées";
+	}
+
+	return $this->response($response, REST_Controller::HTTP_OK);
+}
+
+
+public function creerCommandesToutVenants_post()
+{	
+
+	//var_dump($_POST);
+	//exit();
+	if (!empty($this->input->post('idLogin')) AND !empty($this->input->post('mobilePatients')) 
+		AND !empty($this->input->post('idVaccins')) AND !empty($this->input->post('sousVaccinsID')) 
+		AND !empty($this->input->post('catVaccinsID')) AND !empty($this->input->post('entID')) 
+		AND !empty($this->input->post('nomPatients')) AND !empty($this->input->post('sexePatients'))
+	  AND !empty($this->input->post('idCommunes')))
+	{	
+		  $code_res = 'V'.$this->globalModel->generateUnik();
+          $montant_res = 500;
+          $idLogin = $this->input->post('idLogin');
+          $numeroLots = $this->input->post('numeroLots');
+          //Liste des vaccins (tableau)
+
+          // Utilisez json_decode() pour convertir la chaîne en un tableau PHP
+          $idVaccinsINT = json_decode(str_replace('"', '', $this->input->post('idVaccins')));
+          $idVaccins = array_map('strval', $idVaccinsINT);
+          //var_dump($idVaccins);
+          //exit();
+
+          $canalID = $this->input->post('canalID');
+
+          $nomPatients = $this->input->post('nomPatients');
+          $sexePatients = $this->input->post('sexePatients');
+          $mobilePatients = $this->input->post('mobilePatients');
+          $entID = $this->input->post('entID');
+          $idCommunes = $this->input->post('idCommunes');
+          $catVaccinsID = $this->input->post('catVaccinsID');
+          $sousVaccinsID = $this->input->post('sousVaccinsID');
+
+          //JUST POUR LE TEMPS DE GAVI
+          $modePaieID = $this->input->post('modePaieID');
+          if (empty($modePaieID)) {
+          	$modePaieID = 1;
+          }
+
+          $zeroDosePatient = $this->input->post('zeroDosePatient');
+          if (empty($zeroDosePatient)) {
+          	$zeroDosePatient = 'N';
+          }
+
+          $date_res_deb = date("Y-m-d H:00:00");
+          $date_res_end = date("Y-m-d H:00:00", strtotime("$date_res_deb +1 hours"));
+          $idPlageHoraires = 3;
+
+          $existance = $this->resModel->isCodeRes($code_res);
+          $getVisiteurs = $this->authModel->getMonCompte($idLogin);
+          $getExistePatients = $this->dosModel->getPatientsByIsMobiles($mobilePatients);
+          $getPhone = $this->globalModel->getCodeMobile($mobilePatients);
+
+          $getLastSaisieByUsers = $this->resModel->isGetDernierInsertResByUsers($idLogin);
+          if ($getLastSaisieByUsers) 
+          {
+	          	$dateDebut = DateTime::createFromFormat('Y-m-d H:i:s', $getLastSaisieByUsers->date_create_res);
+				$dateFin = new DateTime();
+				$difference = $dateDebut->diff($dateFin);
+
+				// Conversion de l'intervalle en secondes
+                $diffEnSecondes = $difference->days * 24 * 60 * 60 + $difference->h * 60 * 60 + $difference->i * 60 + $difference->s;
+
+          }
+            
+          if (!empty($getLastSaisieByUsers) AND (int)$diffEnSecondes < 60) 
+		  {
+				$response['code']=0;
+		  		$response['data']= '';
+	  			$response['msg']="Prière espacer vos saisies de 1 minute !";
+		  }
+		  elseif($getPhone == FALSE) 
+		  {
+		    	$response['code']=0;
+			    $response['data']= '';
+			    $response['msg']="Ce Format de Mobile Est Incorrect !";
+		  }
+		  elseif ($getExistePatients)
+		  {
+				$response['code']=0;
+		  		$response['data']= '';
+	  			$response['msg']="Ce Patient Existe Déjà !";
+		  }		  
+		  elseif (empty($getVisiteurs)) 
+		  {
+				$response['code']=0;
+		  		$response['data']= '';
+	  			$response['msg']="Cet utilisateur est inconnu !";
+		  }
+          elseif (empty($existance))
+          {		
+
+          	  $nom_patients = strtok($this->input->post('nomPatients'), ' ');
+              $prenoms_patients = str_replace($nom_patients.' ', '', $this->input->post('nomPatients'));
+
+              $mot_de_passe = strtoupper(substr($prenoms_patients, 0, 1)).rand(10000, 99999);
+              $ClientsId = $this->authModel->creationsToutVenants($nom_patients, 
+              $prenoms_patients, $sexePatients, $mobilePatients, 
+              $idCommunes, $mot_de_passe, $idLogin, $catVaccinsID, $sousVaccinsID);
+
+
+              $resID = $this->resModel->createResTransVaccins($code_res, $entID, $ClientsId, 
+              $montant_res, $date_res_deb, $date_res_end, $idPlageHoraires, 
+              $sousVaccinsID, $catVaccinsID, count($idVaccins), null, $idLogin, $numeroLots, $modePaieID,
+              $zeroDosePatient);
+
+                //foreach ($idVaccins as $vaccins)
+                for ($i=0; $i < count($idVaccins); $i++) 
+                {
+                   $this->resModel->createVaccinations($entID, $resID, $idVaccins[$i], 
+                   $ClientsId, null, 'V');
+
+                   /*
+                   $getVaccins = $this->vaccinsModel->isVaccinsActifs($idVaccins[$i]);
+                   if ($getVaccins && (int)$getVaccins->isDoseUnique == 0) {
+
+                      for ($j=1; $j < (int)$getVaccins->nombreDoses; $j++) { 
+
+                        $nombre = (int)$getVaccins->nombreDoses*$j;
+                        $codeRes = 'R'.$this->globalModel->generateUnik();
+                        $dateCreateRes = date("Y-m-d", strtotime("$date_res_end +$nombre days")).' 07:00:00';
+
+                        $dateResDebut = date("Y-m-d H:i:s", strtotime("$dateCreateRes +$idPlageHoraires hours"));
+                        $dateResFinal = date("Y-m-d H:i:s", strtotime("$dateResDebut +1 hours"));
+
+
+                        //$nombreDosesRestantes = (int)$getVaccins->isDoseUnique - (int)$i;
+                        $idRes = $this->resModel->createResVaccins($codeRes, $entID, 
+                        $ClientsId, $montant_res, $dateResDebut, $dateResFinal, 
+                        $idPlageHoraires, $sousVaccinsID, $catVaccinsID, 1, $resID, 'R');
+
+                        $this->resModel->createVaccinations($entID, $idRes, $idVaccins[$i], 
+                        $ClientsId, $resID, 'R');
+
+                      }
+
+                    }
+                    */
+                }
+
+				$emailClient = str_replace(array(' ', '-'), '', $mobilePatients);
+                $mobile_visiteurs = str_replace('+', '', $emailClient);
+
+                $message = 'Bienvenue%20sur%20Vaccipha.%20Votre%20mot%20de%20passe%20est%20:%20'.$mot_de_passe.'';
+                $curl = curl_init();
+                curl_setopt_array($curl, array(
+                  CURLOPT_URL => 'https://app.smspro.africa/api/v3/sms/send?recipient='.$mobile_visiteurs.'&sender_id=VACCIPHA&type=plain&message='.$message.'',
+                  CURLOPT_RETURNTRANSFER => true,
+                  CURLOPT_ENCODING => '',
+                  CURLOPT_MAXREDIRS => 10,
+                  CURLOPT_TIMEOUT => 0,
+                  CURLOPT_FOLLOWLOCATION => true,
+                  CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                  CURLOPT_CUSTOMREQUEST => 'POST',
+                  CURLOPT_HTTPHEADER => array(
+                    'Authorization: Bearer 991|thLHOMOtvWj4QoXNrhvhrdXQN981PrFtOIIHhHAVcc6c4e0b',
+                    'Content-Type: application/json',
+                    'Accept: application/json'
+                  ),
+                ));
+                $response1 = json_decode(curl_exec($curl), true);
+                curl_close($curl);
+
+				$this->authModel->createCanalPatients($ClientsId, $canalID);
+
+	            $response['code']=1;
+		        $response['data']=$idVaccins;
+		        $response['msg']="Succès, Votre RDV est enregistré !";
+	             
+          }
+          else
+          {
+                $response['code']=0;
+	      		$response['data']='';
+	      		$response['msg']="Erreur système, Veuillez reprendre SVP !";
+          }
+	}
+	else
+	{
+		$response['code']=0;
+        $response['data']= '';
+        $response['msg']="Vérifier les variables envoyées";
+	}
+
+	return $this->response($response, REST_Controller::HTTP_OK);
+}
+
+public function creerCommandesToutVenantsDateUlterieure_post()
+{	
+
+	//var_dump($_POST);
+	//exit();
+	if (!empty($this->input->post('idLogin')) AND !empty($this->input->post('mobilePatients')) 
+		AND !empty($this->input->post('idVaccins')) AND !empty($this->input->post('sousVaccinsID')) 
+		AND !empty($this->input->post('catVaccinsID')) AND !empty($this->input->post('entID')) 
+		AND !empty($this->input->post('nomPatients')) AND !empty($this->input->post('date_res_deb')) AND !empty($this->input->post('sexePatients'))
+	  AND !empty($this->input->post('idCommunes')))
+	{	
+		  $code_res = 'V'.$this->globalModel->generateUnik();
+          $montant_res = 500;
+          $idLogin = $this->input->post('idLogin');
+          $numeroLots = $this->input->post('numeroLots');
+          //Liste des vaccins (tableau)
+
+          // Utilisez json_decode() pour convertir la chaîne en un tableau PHP
+          $idVaccinsINT = json_decode(str_replace('"', '', $this->input->post('idVaccins')));
+          $idVaccins = array_map('strval', $idVaccinsINT);
+          //var_dump($idVaccins);
+          //exit();
+
+          $canalID = $this->input->post('canalID');
+
+          $nomPatients = $this->input->post('nomPatients');
+          $sexePatients = $this->input->post('sexePatients');
+          $mobilePatients = $this->input->post('mobilePatients');
+          $entID = $this->input->post('entID');
+          $idCommunes = $this->input->post('idCommunes');
+          $catVaccinsID = $this->input->post('catVaccinsID');
+          $sousVaccinsID = $this->input->post('sousVaccinsID');
+
+          $date_res_deb = $this->input->post('date_res_deb');
+          $date_res_end = date("Y-m-d H:00:00", strtotime("$date_res_deb +1 hours"));
+          $idPlageHoraires = 3;
+
+          $existance = $this->resModel->isCodeRes($code_res);
+          $getVisiteurs = $this->authModel->getMonCompte($idLogin);
+          $getExistePatients = $this->dosModel->getPatientsByIsMobiles($mobilePatients);
+          $getPhone = $this->globalModel->getCodeMobile($mobilePatients);
+
+          $getLastSaisieByUsers = $this->resModel->isGetDernierInsertResByUsers($idLogin);
+          if ($getLastSaisieByUsers) 
+          {
+	          	$dateDebut = DateTime::createFromFormat('Y-m-d H:i:s', $getLastSaisieByUsers->date_create_res);
+				$dateFin = new DateTime();
+				$difference = $dateDebut->diff($dateFin);
+
+				// Conversion de l'intervalle en secondes
+                $diffEnSecondes = $difference->days * 24 * 60 * 60 + $difference->h * 60 * 60 + $difference->i * 60 + $difference->s;
+
+          }
+            
+          if (!empty($getLastSaisieByUsers) AND (int)$diffEnSecondes < 60) 
+		  {
+				$response['code']=0;
+		  		$response['data']= '';
+	  			$response['msg']="Prière espacer vos saisies de 1 minute !";
+		  }
+		  elseif($getPhone == FALSE) 
+		  {
+		    	$response['code']=0;
+			    $response['data']= '';
+			    $response['msg']="Ce Format de Mobile Est Incorrect !";
+		  }
+		  elseif ($getExistePatients)
+		  {
+				$response['code']=0;
+		  		$response['data']= '';
+	  			$response['msg']="Ce Patient Existe Déjà !";
+		  }		  
+		  elseif (empty($getVisiteurs)) 
+		  {
+				$response['code']=0;
+		  		$response['data']= '';
+	  			$response['msg']="Cet utilisateur est inconnu !";
+		  }
+          elseif (empty($existance))
+          {		
+
+          	  $nom_patients = strtok($this->input->post('nomPatients'), ' ');
+              $prenoms_patients = str_replace($nom_patients.' ', '', $this->input->post('nomPatients'));
+
+              $mot_de_passe = strtoupper(substr($prenoms_patients, 0, 1)).rand(10000, 99999);
+              $ClientsId = $this->authModel->creationsToutVenants($nom_patients, 
+              $prenoms_patients, $sexePatients, $mobilePatients, 
+              $idCommunes, $mot_de_passe, $idLogin, $catVaccinsID, $sousVaccinsID);
+
+
+              $resID = $this->resModel->createResTransVaccinsDateUlterieur($code_res, $entID, $ClientsId, 
+              $montant_res, $date_res_deb, $date_res_end, $idPlageHoraires, 
+              $sousVaccinsID, $catVaccinsID, count($idVaccins), null, $idLogin, $numeroLots);
+
+                //foreach ($idVaccins as $vaccins)
+                for ($i=0; $i < count($idVaccins); $i++) 
+                {
+                   $this->resModel->createVaccinations($entID, $resID, $idVaccins[$i], 
+                   $ClientsId, null, 'V');
+
+                   /*
+                   $getVaccins = $this->vaccinsModel->isVaccinsActifs($idVaccins[$i]);
+                   if ($getVaccins && (int)$getVaccins->isDoseUnique == 0) {
+
+                      for ($j=1; $j < (int)$getVaccins->nombreDoses; $j++) { 
+
+                        $nombre = (int)$getVaccins->nombreDoses*$j;
+                        $codeRes = 'R'.$this->globalModel->generateUnik();
+                        $dateCreateRes = date("Y-m-d", strtotime("$date_res_end +$nombre days")).' 07:00:00';
+
+                        $dateResDebut = date("Y-m-d H:i:s", strtotime("$dateCreateRes +$idPlageHoraires hours"));
+                        $dateResFinal = date("Y-m-d H:i:s", strtotime("$dateResDebut +1 hours"));
+
+
+                        //$nombreDosesRestantes = (int)$getVaccins->isDoseUnique - (int)$i;
+                        $idRes = $this->resModel->createResVaccins($codeRes, $entID, 
+                        $ClientsId, $montant_res, $dateResDebut, $dateResFinal, 
+                        $idPlageHoraires, $sousVaccinsID, $catVaccinsID, 1, $resID, 'R');
+
+                        $this->resModel->createVaccinations($entID, $idRes, $idVaccins[$i], 
+                        $ClientsId, $resID, 'R');
+
+                      }
+
+                    }
+                    */
+                }
+
+               
+
+				$emailClient = str_replace(array(' ', '-'), '', $mobilePatients);
+                $mobile_visiteurs = str_replace('+', '', $emailClient);
+
+                $message = 'Bienvenue%20sur%20Vaccipha.%20Votre%20mot%20de%20passe%20est%20:%20'.$mot_de_passe.'';
+                $curl = curl_init();
+                curl_setopt_array($curl, array(
+                  CURLOPT_URL => 'https://app.smspro.africa/api/v3/sms/send?recipient='.$mobile_visiteurs.'&sender_id=VACCIPHA&type=plain&message='.$message.'',
+                  CURLOPT_RETURNTRANSFER => true,
+                  CURLOPT_ENCODING => '',
+                  CURLOPT_MAXREDIRS => 10,
+                  CURLOPT_TIMEOUT => 0,
+                  CURLOPT_FOLLOWLOCATION => true,
+                  CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                  CURLOPT_CUSTOMREQUEST => 'POST',
+                  CURLOPT_HTTPHEADER => array(
+                    'Authorization: Bearer 991|thLHOMOtvWj4QoXNrhvhrdXQN981PrFtOIIHhHAVcc6c4e0b',
+                    'Content-Type: application/json',
+                    'Accept: application/json'
+                  ),
+                ));
+                $response1 = json_decode(curl_exec($curl), true);
+                curl_close($curl);
+
+				$this->authModel->createCanalPatients($ClientsId, $canalID);
+
+	            $response['code']=1;
 		        $response['data']=$idVaccins;
 		        $response['msg']="Succès, Votre RDV est enregistré !";
 	             
@@ -926,6 +1405,11 @@ public function creerCommandesCarnetsExistants_post()
           $date_res_end = date("Y-m-d H:00:00", strtotime("$date_res_deb +1 hours"));
           $idPlageHoraires = 3;
 
+          $zeroDosePatient = $this->input->post('zeroDosePatient');
+          if (empty($zeroDosePatient)) {
+          	$zeroDosePatient = 'N';
+          }
+
           $existance = $this->resModel->isCodeRes($code_res);
           $getVisiteurs = $this->authModel->getMonCompte($idLogin);	
           $getPatients = $this->dosModel->isDossiersByPatientsID($ClientsId);	
@@ -967,7 +1451,7 @@ public function creerCommandesCarnetsExistants_post()
               $resID = $this->resModel->createResTransVaccins($code_res, $entID, $ClientsId, 
               $montant_res, $date_res_deb, $date_res_end, $idPlageHoraires, 
               $getPatients->sousVaccinsID, $getPatients->catVaccinsID, count($idVaccins), 
-              null, $idLogin, $numeroLots);
+              null, $idLogin, $numeroLots, 1, $zeroDosePatient);
 
                 //foreach ($idVaccins as $vaccins)
                 for ($i=0; $i < count($idVaccins); $i++) 
@@ -1025,6 +1509,7 @@ public function creerCommandesCarnetsExistants_post()
 
 	return $this->response($response, REST_Controller::HTTP_OK);
 }
+
 
 
 

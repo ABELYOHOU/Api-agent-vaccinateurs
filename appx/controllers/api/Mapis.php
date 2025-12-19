@@ -29,7 +29,7 @@ public function getListeMapis_post()
 		if (empty($getVisiteurs)) 
 		{
 			$response['code']=0;
-	  		$response['data']= array();
+	  		$response['data']= '';
 	  		$response['msg']="Ce compte est inconnu !";
 		}
 		else
@@ -44,7 +44,7 @@ public function getListeMapis_post()
 			else
 			{
 				$response['code']=0;
-				$response['data']= array();
+				$response['data']= '';
 				$response['msg']="Aucune Mapi Pour le Moment !";
 			}
 		}

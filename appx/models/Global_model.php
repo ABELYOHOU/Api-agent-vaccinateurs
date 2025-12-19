@@ -172,6 +172,37 @@
                             ->insert($this->table_connexion);
         }
 
+
+        public function createConnectiviteV($vaccinateurConnexionID)
+        {           
+            return $this->db->set('vaccinateurConnexionID', $vaccinateurConnexionID)
+                            ->set('etatConnexion', 'A')
+                            ->set('dateCreateConnexion', date("Y-m-d H:i:s"))
+                            ->insert($this->table_connexion);
+        }
+
+
+         public function getConnectivites($usersConnexionId)
+        { 
+             return $this->db->select('*')
+                             ->from($this->table_connexion)
+                             ->where('usersConnexionId', $usersConnexionId)
+                             ->where('etatConnexion', 'A')
+                             ->get()
+                             ->row();   
+        }
+
+
+          public function getConnectivitesV($vaccinateurConnexionID)
+        { 
+             return $this->db->select('*')
+                             ->from($this->table_connexion)
+                             ->where('vaccinateurConnexionID', $vaccinateurConnexionID)
+                             ->where('etatConnexion', 'A')
+                             ->get()
+                             ->row();   
+        }
+
         public function createReinitialize($usersID, $usersTypeID)
         {           
             return $this->db->set('usersTypeID', $usersTypeID)

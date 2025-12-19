@@ -433,6 +433,8 @@ public function getCarnetVaccinalByPatientId($patientsResId)
                      ->join('vaccins', 'vaccins.idVaccins = vaccinations.vaccinsFk', 'left')
                      ->join('cat_vaccins', 'cat_vaccins.id_cat_vaccins = reservations.catVaccinsResID', 'left')
                      ->join('sous_vaccins', 'sous_vaccins.id_sous_vaccins = reservations.sousVaccinsResID', 'left')
+                     ->where('reservations.serviceResID', 1)
+                     ->where_not_in('reservations.adderResFK', array(451, 452, 453, 454, 455, 456, 457, 458, 459, 460, 461, 462, 463, 464, 465, 467, 468, 469, 470, 472, 490, 491))
                      ->where('reservations.patientsResId', $patientsResId)
                       ->order_by("reservations.date_maj_res","desc")
                      ->get();
