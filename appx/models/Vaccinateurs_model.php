@@ -27,9 +27,34 @@
 
 
 
+    public function createVaccinations($reservationsFk, $vaccinsFk, $patientsFk, 
+$parentResID, $typeResVaccins)
+{           
+             $this->db
+                      ->set('reservationsFk', $reservationsFk)
+                      ->set('vaccinsFk', $vaccinsFk)
+                      ->set('typeResVaccins', $typeResVaccins)
+                      ->set('parentResID', $parentResID)
+                      ->set('patientsFk', $patientsFk)
+                      ->set('etatVaccinations', 'A')
+                      ->set('dateCreateVaccinations', date("Y-m-d H:i:s"))
+                      ->insert($this->table_vaccinations);
+      return $this->db->insert_id();
+}
 
-    public function FinaliserCommandes($numeroLots, $refCommande, $montant_res, $qteProduits, $parentResFK, $date_res_deb, $date_res_end)
+
+    public function FinaliserCommandes($numeroLots, $refCommande, $montant_res, $qteProduits, $parentResFK, $date_res_deb, $date_res_end, $patientsResId)
     {           
+
+
+    $reservation = $this->db->get_where($this->table_reservations, ['code_res' => $refCommande])->row();
+
+    if (!$reservation) {
+        return false; 
+    }
+
+    $resID = $reservation->id_res;
+    $patientsResId = $reservation->patientsResId; 
 
         $this->db->set('parentResFK', $parentResFK)
                  ->set('numLotsDistricts', $numeroLots)
@@ -44,6 +69,9 @@
                  ->update($this->table_reservations);
 
 
+
+
+
     
         $this->db->set('operateur_trans', null)
                  ->set('lotsResTrans', $numeroLots)
@@ -53,8 +81,8 @@
                  ->set('montant_trans', (float)$montant_res)
                  ->set('frais_trans', 0)
                  ->set('date_maj_trans', date("Y-m-d H:i:s"))
-               /*  ->set('resID', $reservationID)
-                 ->set('patientsFK', $patientsResId)*/
+                 ->set('resID', $resID)
+                 ->set('patientsFK', $patientsResId)
                  ->set('etat_trans', 'A')
                  ->set('reversCode', 'N')
                  ->set('servicesTransID', 2)
@@ -62,7 +90,9 @@
                  ->set('date_create_trans', date("Y-m-d H:i:s"))
                  ->insert($this->table_transactions);
 
-      // return $reservationID;
+                  return $resID;
+
+     
     }
 
 
@@ -101,19 +131,7 @@
     }
 
 
-    public function createVaccinations($reservationsFk, $vaccinsFk, 
-    $patientsResId, $patientsFk)
-    {           
-                 $this->db
-                          ->set('reservationsFk', $reservationsFk)
-                          ->set('vaccinsFk', $vaccinsFk)
-                          ->set('parentResID', $patientsResId)
-                          ->set('patientsFk', $patientsFk)
-                          ->set('etatVaccinations', 'A')
-                          ->set('dateCreateVaccinations', date("Y-m-d H:i:s"))
-                          ->insert($this->table_vaccinations);
-          return $this->db->insert_id();
-    }
+   
 
      
 

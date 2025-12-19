@@ -21,7 +21,7 @@
 
 
 
-          public function FinaliserCommandes_post()
+   public function FinaliserCommandes_post()
 	 {
 		    if (!empty($this->input->post('idLogin')) 
 		    AND !empty($this->input->post('refCommande'))
@@ -39,7 +39,10 @@
 			$idLogin = $this->input->post('idLogin');
 
 
-			$patientsResId = $this->input->post('patientsResId');
+			  $ClientsId = $this->input->post('idPatients');
+			  $patientsResId = $this->input->post('patientsResId');
+			  $getPatients = $this->dosModel->isDossiersByPatientsID($ClientsId);
+			  
 
 			$getCommandes = $this->vacModel->isCodeRes($refCommande);
 
@@ -76,16 +79,19 @@
 	         $idVaccins = array_map('strval', $idVaccinsINT);*/
 
 
-		    $this->vacModel->FinaliserCommandes(
+		   $resID = $this->vacModel->FinaliserCommandes(
 				$numeroLots,
-				$getCommandes->code_res, $montant_res, count($idVaccins),null, $date_res_deb , $date_res_end
+				$getCommandes->code_res, $montant_res, count($idVaccins),null, $date_res_deb , $date_res_end, $ClientsId,
 			);
 
-			/*for ($i=0; $i < count($idVaccins); $i++) 
-			{
-				$this->vacModel->createVaccinations(null, $reservationID, $idVaccins[$i], 
-					$patientsResId, 'V');
-			}*/
+			 //foreach ($idVaccins as $vaccins)
+                for ($i=0; $i < count($idVaccins); $i++) 
+                {
+                   $this->vacModel->createVaccinations($resID, $idVaccins[$i], 
+                   $patientsResId, null, 'V');
+
+                   
+                }
 
 			return $this->response([
 				"code" => 1,
