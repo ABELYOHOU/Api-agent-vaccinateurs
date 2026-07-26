@@ -1,45 +1,135 @@
-**Edit a file, create a new file, and clone from Bitbucket in under 2 minutes**
+# Vaccipha API — Module Vaccinateurs
 
-When you're done, you can delete the content in this README and update the file with details for others getting started with your repository.
+API REST du système de gestion de vaccination **Vaccipha**, développée par **Enovpharm**. Ce dépôt couvre le module **Vaccinateurs** : gestion des agents terrain, suivi des commandes de vaccination, positions GPS, et catalogue de vaccins.
 
-*We recommend that you open this README in another tab as you perform the tasks below. You can [watch our video](https://youtu.be/0ocf7u76WSo) for a full demo of all the steps in this tutorial. Open the video in a new tab to avoid leaving Bitbucket.*
+## 📋 À propos
+
+Vaccipha est une plateforme de gestion de vaccination qui met en relation officines/institutions, agents vaccinateurs et patients. Ce module API permet aux applications mobiles des agents vaccinateurs de :
+
+- S'authentifier et gérer leur compte
+- Consulter et traiter leurs commandes de vaccination (en cours, terminées, transférées, annulées, reportées)
+- Enregistrer leur position GPS en temps réel
+- Consulter le catalogue de vaccins (PEV et hors PEV)
+- Finaliser les commandes (paiement, vaccins administrés)
+
+## 🛠️ Stack technique
+
+| Composant | Technologie |
+|---|---|
+| Backend | PHP / CodeIgniter (REST_Controller) |
+| Base de données | MySQL / MariaDB |
+| Format d'échange | `application/x-www-form-urlencoded` (requêtes), JSON (réponses) |
+| Documentation API | OpenAPI 3.0 (SwaggerHub) |
+
+## 🔗 Documentation interactive
+
+La documentation complète des endpoints (paramètres, réponses, exemples) est disponible sur SwaggerHub :
+
+👉 **[Voir la documentation Vaccipha API](https://app.swaggerhub.com/apis/ABELYOHOU/Doc/1.0.0)**
+
+Le fichier de spécification OpenAPI est aussi disponible dans ce dépôt : [`vaccipha-api-vaccinateurs.yaml`](./vaccipha-api-vaccinateurs.yaml).
+
+## 🌐 URL de base
+
+```
+https://apismobile.vaccipha.net/index.php/api/
+```
+
+Tous les endpoints sont accessibles via `POST` ou `GET` selon la méthode, au format :
+```
+{URL_BASE}/Vaccinateurs/{nomDeLaMethode}
+```
+
+## 📦 Format de réponse
+
+Toutes les réponses de l'API suivent une structure JSON commune, avec un code HTTP `200` systématique (le succès ou l'échec fonctionnel est indiqué par le champ `code`) :
+
+```json
+{
+  "code": 1,
+  "data": { },
+  "msg": "Message destiné à l'utilisateur"
+}
+```
+
+| Champ | Type | Description |
+|---|---|---|
+| `code` | integer | `1` = succès, `0` = échec fonctionnel |
+| `data` | mixed | Contenu variable selon l'endpoint (objet, tableau, chaîne vide) |
+| `msg` | string | Message à afficher à l'utilisateur |
+
+## 📚 Principaux endpoints
+
+### Authentification & compte
+- `POST /Vaccinateurs/login` — Connexion d'un agent
+- `POST /Vaccinateurs/majPassword` — Mise à jour du mot de passe (1ère connexion)
+- `POST /Vaccinateurs/password` — Changement de mot de passe
+- `POST /Vaccinateurs/reinitialize` — Réinitialisation du mot de passe (SMS/email)
+- `POST /Vaccinateurs/getMonCompte` — Récupérer les infos du compte
+- `POST /Vaccinateurs/majMonCompte` — Mettre à jour les infos du compte
+
+### Gestion des commandes
+- `POST /Vaccinateurs/commandeTraitement` — Démarrer le traitement d'une commande
+- `POST /Vaccinateurs/FinaliserCommandes` — Finaliser une commande (paiement + vaccins)
+- `POST /Vaccinateurs/transfererCommande` — Transférer une commande à un autre agent
+- `POST /Vaccinateurs/reporterCommande` — Reporter une commande
+- `POST /Vaccinateurs/commandeEffectuee` — Marquer une commande comme terminée
+- `POST /Vaccinateurs/getListCommandes` — Lister les commandes sur une période
+- `POST /Vaccinateurs/getAllCommandes` — Lister toutes les commandes d'un agent
+
+### Positions GPS
+- `POST /Vaccinateurs/insertPosition` — Enregistrer une position GPS
+- `POST /Vaccinateurs/getPositionActive` — Récupérer la dernière position active
+- `GET /Vaccinateurs/historiqueTrajet` — Historique des positions d'un trajet
+
+### Catalogue de vaccins
+- `GET /Vaccinateurs/getCatVaccins` — Catégories de vaccins actives
+- `GET /Vaccinateurs/getCatVaccinsPev` / `getCatVaccinsHorsPev` — Catégories PEV / hors PEV
+- `POST /Vaccinateurs/getListesSousVaccinsPevByCategories` — Sous-catégories par catégorie
+- `POST /Vaccinateurs/getVaccinsBySousCategories` — Vaccins d'une sous-catégorie
+
+> La liste complète des 40 endpoints du module (avec paramètres et exemples) est disponible dans la [documentation SwaggerHub](https://app.swaggerhub.com/apis/ABELYOHOU/Doc/1.0.0).
+
+## 🔒 Sécurité
+
+⚠️ **Avant toute publication ou déploiement**, vérifier qu'aucune information sensible n'est présente en dur dans le code (clés API, tokens d'autorisation, identifiants de services tiers). Ces éléments doivent être déplacés dans un fichier de configuration non versionné (voir `.gitignore`).
+
+## 📁 Structure du projet
+
+```
+application/
+├── controllers/
+│   └── api/
+│       ├── Auth.php
+│       ├── Vaccinateurs.php
+│       ├── Dossiers.php
+│       └── AgentPosition.php
+├── models/
+│   ├── Auth_model.php
+│   ├── Vaccinateurs_model.php
+│   ├── Agent_position_model.php
+│   ├── Dossiers_model.php
+│   ├── Global_model.php
+│   └── ...
+└── libraries/
+    ├── REST_Controller.php
+    ├── Format.php
+    └── mailjet.php
+```
+
+## 🚀 Installation locale
+
+1. Cloner le dépôt
+   ```bash
+   git clone <url-du-depot>
+   ```
+2. Configurer la base de données dans `application/config/database.php`
+3. Configurer les clés/tokens des services tiers (SMS, email) dans un fichier de configuration local (non versionné)
+4. Importer le schéma de base de données MySQL/MariaDB
+5. Démarrer le serveur (Apache/XAMPP ou équivalent)
+
+
 
 ---
 
-## Edit a file
-
-You’ll start by editing this README file to learn how to edit a file in Bitbucket.
-
-1. Click **Source** on the left side.
-2. Click the README.md link from the list of files.
-3. Click the **Edit** button.
-4. Delete the following text: *Delete this line to make a change to the README from Bitbucket.*
-5. After making your change, click **Commit** and then **Commit** again in the dialog. The commit page will open and you’ll see the change you just made.
-6. Go back to the **Source** page.
-
----
-
-## Create a file
-
-Next, you’ll add a new file to this repository.
-
-1. Click the **New file** button at the top of the **Source** page.
-2. Give the file a filename of **contributors.txt**.
-3. Enter your name in the empty file space.
-4. Click **Commit** and then **Commit** again in the dialog.
-5. Go back to the **Source** page.
-
-Before you move on, go ahead and explore the repository. You've already seen the **Source** page, but check out the **Commits**, **Branches**, and **Settings** pages.
-
----
-
-## Clone a repository
-
-Use these steps to clone from SourceTree, our client for using the repository command-line free. Cloning allows you to work on your files locally. If you don't yet have SourceTree, [download and install first](https://www.sourcetreeapp.com/). If you prefer to clone from the command line, see [Clone a repository](https://confluence.atlassian.com/x/4whODQ).
-
-1. You’ll see the clone button under the **Source** heading. Click that button.
-2. Now click **Check out in SourceTree**. You may need to create a SourceTree account or log in.
-3. When you see the **Clone New** dialog in SourceTree, update the destination path and name if you’d like to and then click **Clone**.
-4. Open the directory you just created to see your repository’s files.
-
-Now that you're more familiar with your Bitbucket repository, go ahead and add a new file locally. You can [push your change back to Bitbucket with SourceTree](https://confluence.atlassian.com/x/iqyBMg), or you can [add, commit,](https://confluence.atlassian.com/x/8QhODQ) and [push from the command line](https://confluence.atlassian.com/x/NQ0zDQ).
+*Ce README couvre le module Vaccinateurs. D'autres modules (Auth, Vaccins, Dash) existent dans le système global Vaccipha.*
