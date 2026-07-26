@@ -277,6 +277,7 @@ public function getListesSousVaccinsByCategories($categorieVaccinsID)
        $query = $this->db->select('*')
                         ->from($this->table_sous_vaccins)
                         ->where('sous_vaccins.etat_sous_vaccins', 'A')
+                        ->where('sous_vaccins.rang_sous_vaccins', '1')
                         ->where('sous_vaccins.categorieVaccinsID', $categorieVaccinsID)
                         ->get();
         return $query->result();

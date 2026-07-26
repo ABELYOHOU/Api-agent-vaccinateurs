@@ -27,6 +27,13 @@ public function login_post()
 		$query = $this->authModel->isIdentifier($login, $password);
 		if ($query) 
 		{	
+
+			$this->globalModel->createConnectivite($query->id_users);
+			$response['code']=1;
+		    $response['data']=$query;
+		    $response['msg']="Bienvenue sur Vaccipha !";
+
+			/*   
             $getConnectivite = $this->globalModel->getConnectivites($query->id_users);
 			if ($getConnectivite) 
 			{
@@ -42,6 +49,7 @@ public function login_post()
 			    $response['data']=$query;
 			    $response['msg']="Bienvenu(e) sur Vaccipha !";
 			}
+			*/
 
 		}
 		else

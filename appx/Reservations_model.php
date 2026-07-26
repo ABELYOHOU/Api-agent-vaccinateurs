@@ -322,6 +322,28 @@ public function getRDVsEtRappelsByTypeRes($entID, $status_res)
            return $query->result();
 }
 
+
+public function getRDVsEtRappelsByPeriode($entID, $date_min, $date_max)
+{     
+      $query = $this->db->select('*')
+                        ->from($this->table_reservations)
+                        ->join('patients', 'patients.id_patients = reservations.patientsResId', 'left')
+                        ->join('entreprise', 'entreprise.id_entreprise = reservations.entResId', 'left')
+                        ->join('cat_vaccins', 'cat_vaccins.id_cat_vaccins = reservations.catVaccinsResID', 'left')
+                        ->join('sous_vaccins', 'sous_vaccins.id_sous_vaccins = reservations.sousVaccinsResID', 'left')
+                        ->where('reservations.etat_res', 'A')
+                       // ->where('reservations.status_res', $status_res)
+                        ->where('reservations.serviceResID', 1)
+                        //->where('reservations.typeResCode', $typeResCode)
+                        ->where_not_in('reservations.adderResFK', array(451, 452, 453, 454, 455, 456, 457, 458, 459, 460, 461, 462, 463, 464, 465, 467, 468, 469, 470, 472, 490, 491))
+                        ->where('reservations.entResId', $entID)
+                        ->where('reservations.date_create_res >=', $date_min)
+                        ->where('reservations.date_create_res <=', $date_max)
+                        ->order_by("reservations.id_res","desc")
+                        ->get();
+           return $query->result();
+}
+
 public function getListesRDVsEtRappelsAVenir($entID)
 {     
       $query = $this->db->select('*')
@@ -657,7 +679,7 @@ $parentResFK, $adderResFK, $numeroLots, $modePaieID, $zeroDosePatient)
                              ->set('lotsResTrans', $numeroLots)
                              ->set('mobile_paiement', null)
                              ->set('reference_syca', null)
-                             ->set('modePayerId', 1)
+                             ->set('modePayerId', $modePaieID)
                              ->set('montant_trans', (float)$montant_res)
                              ->set('frais_trans', 0)
                              ->set('date_maj_trans', date("Y-m-d H:i:s"))

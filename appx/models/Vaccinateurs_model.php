@@ -24,10 +24,77 @@
     protected $table_vaccinations = "vaccinations";
     protected $table_transactions = "transactions";
     protected $table_reservations = "reservations";
+    protected $table_agents_position = 'agents_positions';
 
 
+public function insertPosition($agentID, $resID, $latitude, $longitude, $patientsResId)
+{
+    // 1. Désactiver l’ancienne position active
+    $req1 = $this->db->set('etat_agents_position', 'I')
+        ->where('agentsVaccinateursPositionID', $agentID)
+        ->where('resPositionID', $resID)
+        ->where('etat_agents_position', 'A')
+        ->update($this->table_agents_position);
 
-    public function createVaccinations($reservationsFk, $vaccinsFk, $patientsFk, 
+    // 2. Insérer la nouvelle position (TA logique)
+    if ($req1) {
+
+        $this->db->set('agentsVaccinateursPositionID', $agentID)
+            ->set('etat_agents_position', 'A')
+            ->set('resPositionID', $resID)
+            ->set('patientPositionsID', $patientsResId)
+            ->set('date_create_agents_positions', date("Y-m-d H:i:s"))
+            ->set('latitude_agent_positions', $latitude)
+            ->set('longitude_agent_positions', $longitude)
+            ->insert($this->table_agents_position);
+
+        return [
+            [
+                'agentsVaccinateursPositionID' => $agentID,
+                'resPositionID' => $resID,
+                'patientPositionsID' => $patientsResId,
+                'latitude_agent_positions' => $latitude,
+                'longitude_agent_positions' => $longitude
+            ]
+        ];
+    }
+
+    return FALSE;
+}
+
+     // Récupérer la dernière position ACTIF pour un agent sur une réservation
+     
+    public function getPositionActive($agentID, $resID) {
+
+        $query = $this->db->select('*')
+                          ->from($this->table_agents_position)
+                          ->where('agentsVaccinateursPositionID', $agentID)
+                          ->where('resPositionID', $resID)
+                          ->where('etat_agents_position', 'A')
+                          ->order_by('date_create_agents_positions', 'DESC')
+                          ->get();
+    }
+
+
+public function getHistoriquePositions($resID)
+     {
+        return $this->db->where('resPositionID', $resID)
+                        ->order_by('date_create_agents_positions', 'ASC')
+                        ->get($this->table_agents_position)
+                        ->result();
+    }
+
+public function getDernierStatusActif($id_res)
+{
+    return $this->db->where('resStatusCmdID', $id_res)
+                    ->where('etat_status_cmd', 'A')
+                    ->order_by('id_status_cmd', 'DESC')
+                    ->limit(1)
+                    ->get($this->table_status_commande)
+                    ->row();
+}
+     
+public function createVaccinations($reservationsFk, $vaccinsFk, $patientsFk, 
 $parentResID, $typeResVaccins)
 {           
              $this->db
@@ -42,10 +109,48 @@ $parentResID, $typeResVaccins)
       return $this->db->insert_id();
 }
 
+public function commandeEffectuee($ResCommandes, $vaccinateurID, $date_create_status_cmd, $date_initiale_deb , $date_initiale_end)
+    {
+         $req1 = $this->db->set('status_status_cmd', 'L')
+                        ->set('etat_status_cmd', 'I')
+                        ->set('date_maj_status_cmd', date("Y-m-d H:i:s"))
+                        ->where('resStatusCmdID', $ResCommandes)
+                        ->where('status_status_cmd', 'L')
+                        ->where('etat_status_cmd', 'A')
+                        ->update($this->table_status_commande);
 
-    public function FinaliserCommandes($numeroLots, $refCommande, $montant_res, $qteProduits, $parentResFK, $date_res_deb, $date_res_end, $patientsResId)
+       if ($req1) 
+       {
+            $req2 =  $this->db->set('status_status_cmd', 'S')
+                             ->set('etat_status_cmd', 'A')
+                             ->set('details_status_cmd', 'TERMINÉE')
+                             ->set('date_maj_status_cmd', date("Y-m-d H:i:s"))
+                             ->set('date_initiale_deb', $date_initiale_deb)
+                             ->set('date_initiale_end', $date_initiale_end)
+                             ->set('date_create_status_cmd', $date_create_status_cmd)
+                             ->set('resStatusCmdID', $ResCommandes)
+                              ->set('vaccinateursFk', $vaccinateurID)
+                             ->insert($this->table_status_commande);
+       }
+
+       
+       if ($req2) 
+       {
+           return $this->db->set('status_res', 'S')
+                           ->set('date_maj_res', date("Y-m-d H:i:s"))
+                           ->where('id_res', $ResCommandes)
+                           ->update($this->table_reservations);
+       }
+       else
+       {
+            return FALSE;
+       }
+    }
+
+
+
+    public function FinaliserCommandes($numeroLots, $refCommande, $date_create_status_cmd, $montant_res, $qteProduits, $parentResFK, $date_res_deb, $date_res_end, $patientsResId, $modePaieID, $referencePaiment, $vaccinateurID)
     {           
-
 
     $reservation = $this->db->get_where($this->table_reservations, ['code_res' => $refCommande])->row();
 
@@ -56,24 +161,50 @@ $parentResID, $typeResVaccins)
     $resID = $reservation->id_res;
     $patientsResId = $reservation->patientsResId; 
 
-        $this->db->set('parentResFK', $parentResFK)
+
+    $req0 = $this->db->set('status_status_cmd', 'L')
+                        ->set('etat_status_cmd', 'I')
+                        ->set('date_maj_status_cmd', date("Y-m-d H:i:s"))
+                        ->where('resStatusCmdID', $resID)
+                       // ->where('resStatusCmdID', $refCommande)
+                        ->where('status_status_cmd', 'L')
+                        ->where('etat_status_cmd', 'A')
+                        ->update($this->table_status_commande);
+  if($req0){
+
+          $req01 =  $this->db->set('status_status_cmd', 'S')
+                             ->set('etat_status_cmd', 'A')
+                             ->set('details_status_cmd', 'TERMINÉE')
+                             ->set('date_maj_status_cmd', date("Y-m-d H:i:s"))
+                             ->set('date_initiale_deb', $date_res_deb)
+                             ->set('date_initiale_end', $date_res_end)
+                             ->set('date_create_status_cmd', $date_create_status_cmd)
+                            // ->set('resStatusCmdID', $refCommande)
+                             ->set('resStatusCmdID', $resID)
+                             ->set('vaccinateursFk', $vaccinateurID)
+                             ->insert($this->table_status_commande);
+  } 
+
+  if($req01){
+
+     $req1 =  $this->db->set('parentResFK', $parentResFK)
                  ->set('numLotsDistricts', $numeroLots)
                  ->set('montant_res', (float)$montant_res)
                  ->set('date_res_end',$date_res_end)
                  ->set('date_res_deb', $date_res_deb)
                  ->set('qteProduits', $qteProduits)
                  ->set('status_res', 'S') 
-                 ->set('modePaieID', 1)
+                 ->set('modePaieID', $modePaieID)
                  ->set('date_maj_res', date("Y-m-d H:i:s"))
-                 ->where('code_res', $refCommande)
+                 //->where('code_res', $refCommande)
+                 ->where('id_res', $resID)
                  ->update($this->table_reservations);
+  }
 
 
+      if ($req1 && (int)$modePaieID == 1) {
 
-
-
-    
-        $this->db->set('operateur_trans', null)
+          $this->db->set('operateur_trans', null)
                  ->set('lotsResTrans', $numeroLots)
                  ->set('mobile_paiement', null)
                  ->set('reference_syca', null)
@@ -92,7 +223,34 @@ $parentResID, $typeResVaccins)
 
                   return $resID;
 
-     
+      }
+      elseif ($req1 && (int)$modePaieID == 3) {
+           
+           $this->db->set('operateur_trans', null)
+                 ->set('lotsResTrans', $numeroLots)
+                 ->set('mobile_paiement', null)
+                 ->set('reference_syca', $referencePaiment)
+                 ->set('modePayerId', 3)
+                 ->set('montant_trans', (float)$montant_res)
+                 ->set('frais_trans', 0)
+                 ->set('date_maj_trans', date("Y-m-d H:i:s"))
+                 ->set('resID', $resID)
+                 ->set('patientsFK', $patientsResId)
+                 ->set('etat_trans', 'A')
+                 ->set('reversCode', 'N')
+                 ->set('servicesTransID', 2)
+                 ->set('status_trans', 'S')
+                 ->set('date_create_trans', date("Y-m-d H:i:s"))
+                 ->insert($this->table_transactions);
+
+                  return $resID;
+
+      } else{
+
+         return FALSE;
+      }
+
+      
     }
 
 
@@ -130,11 +288,6 @@ $parentResID, $typeResVaccins)
              return $query->result();
     }
 
-
-   
-
-     
-
      public function getSousVaccinsPevActifs()
         {   
             $query = $this->db->select('*')
@@ -168,65 +321,6 @@ $parentResID, $typeResVaccins)
             return $query->result();
     }
 
-    public function transfererCommande($ResCommandes,$motifStatusCmdID)
-    {  
-       return $this->db->set('status_status_cmd', 'T')
-                        ->set('details_status_cmd', "TRANSFERER")
-                        ->set('motifStatusCmdID', $motifStatusCmdID)
-                        ->set('date_maj_status_cmd', date("Y-m-d H:i:s"))
-                        ->where('status_cmd.resStatusCmdID', $ResCommandes)
-                        ->update($this->table_status_commande);
-
-    }
-
-
-
-    public function reporterCommande($ResCommandes,$motifStatusCmdID)
-    {  
-       return $this->db->set('status_status_cmd', 'R')
-                        ->set('details_status_cmd', "REPORTER")
-                        ->set('motifStatusCmdID', $motifStatusCmdID)
-                        ->set('date_maj_status_cmd', date("Y-m-d H:i:s"))
-                        ->where('status_cmd.resStatusCmdID', $ResCommandes)
-                        ->update($this->table_status_commande);
-
-    }
-
-    public function commandeTraitement($ResCommandes)
-    {  
-       return $this->db->set('status_status_cmd', 'L')
-                        ->set('details_status_cmd', "TRAITEMENT")
-                        ->set('date_maj_status_cmd', date("Y-m-d H:i:s"))
-                        ->where('status_cmd.resStatusCmdID', $ResCommandes)
-                        ->update($this->table_status_commande);
-
-    }
-
-
-
-       public function commandeEffectuee($ResCommandes)
-    {
-        $req1 = $this->db->set('status_status_cmd', 'S')
-                        ->set('details_status_cmd', "TERMINÉE")
-                        ->set('date_maj_status_cmd', date("Y-m-d H:i:s"))
-                        ->where('status_cmd.resStatusCmdID', $ResCommandes)
-                        ->update($this->table_status_commande);
-
-        if ($req1) {
-            $req2 = $this->db->set('status_res', 'S')
-                             ->set('etat_res', 'A')
-                             ->set('devicesID', 2)
-                             ->set('serviceResID', 2)
-                             ->set('date_maj_res', date("Y-m-d H:i:s"))
-                             ->where('id_res', $ResCommandes) 
-                             ->update($this->table_reservations);
-
-            return $req2;
-        }
-
-        return FALSE;
-    }
-
 
 
     public function isCodeRes($code_res)
@@ -234,6 +328,16 @@ $parentResID, $typeResVaccins)
        return $this->db->select('*')
                          ->from($this->table_reservations)
                          ->where('reservations.code_res', $code_res)
+                         ->get()
+                         ->row();
+    }
+
+
+     public function isGetVaccinateur($id_vaccinateurs)
+    {   
+       return $this->db->select('*')
+                         ->from($this->table_reservations)
+                         ->where('reservations.agentsVaccinsFk', $id_vaccinateurs)
                          ->get()
                          ->row();
     }
@@ -261,7 +365,6 @@ $parentResID, $typeResVaccins)
                          ->get()
                          ->row();
     }
-
 
 
     public function getPatientsByMobiles($contact_patients)
@@ -293,9 +396,9 @@ $parentResID, $typeResVaccins)
             ->where('status_cmd.etat_status_cmd', 'A')
             ->where('status_cmd.status_status_cmd', 'P')
             ->where('reservations.agentsVaccinsFk', $vaccinateurID)
-            ->where("status_cmd.date_initiale_deb >= ", date('Y-m-d 00:00:00'))
-            ->where("status_cmd.date_initiale_end <= ", date('Y-m-d 23:59:59'))
-            ->order_by("reservations.id_res", "desc")
+           /* ->where('status_cmd.date_initiale_deb <=', date('Y-m-d 23:59:59'))
+            ->where('status_cmd.date_initiale_end >=', date('Y-m-d 00:00:00'))*/
+            ->order_by("reservations.date_res_deb", "asc")
             ->get();
         
         return $query->result();
@@ -362,6 +465,7 @@ $parentResID, $typeResVaccins)
                        ->join('reservations', 'reservations.id_res = status_cmd.resStatusCmdID', 'left')
                        ->where('reservations.etat_res', 'A')
                        ->where('status_cmd.status_status_cmd', 'P')
+                       ->where('etat_status_cmd', 'A')
                      //  ->where('status_cmd.vaccinateursFk', $vaccinateurID)
                        ->where('reservations.agentsVaccinsFk', $vaccinateurID)
                        ->get()
@@ -397,31 +501,55 @@ $parentResID, $typeResVaccins)
     }
 
 
+   public function getListCommandesEnCoursBySemaine($vaccinateurID)
+{
+    $query = $this->db->select('*')
+        ->from($this->table_status_commande)
+        ->join('reservations', 'reservations.id_res = status_cmd.resStatusCmdID', 'left')
+        ->join('cat_vaccins', 'cat_vaccins.id_cat_vaccins = reservations.catVaccinsResID', 'left')
+        ->join('sous_vaccins', 'sous_vaccins.id_sous_vaccins = reservations.sousVaccinsResID', 'left')
+        ->join('patients', 'patients.id_patients = reservations.patientsResId', 'left')
+        ->join('communes', 'communes.id_commune = reservations.communesResID', 'left')
+        ->join('quartiers', 'quartiers.id_quartiers = reservations.quartiersResID', 'left')
+        ->join('vaccinateurs', 'vaccinateurs.id_vaccinateurs = reservations.agentsVaccinsFk', 'left')
+        ->where('status_cmd.etat_status_cmd', 'A')
+        ->where('status_cmd.status_status_cmd','P')
+        ->where('reservations.status_res','P')
+       /* ->where('status_cmd.date_initiale_deb <=', date('Y-m-d 23:59:59', strtotime('sunday this week')))
+        ->where('status_cmd.date_initiale_end >=', date('Y-m-d 00:00:00', strtotime('monday this week')))*/
+        ->where('reservations.agentsVaccinsFk', $vaccinateurID)
+        ->order_by('reservations.date_res_deb', 'asc')
+        ->get();
 
-    public function getListCommandesEnCoursBySemaine($vaccinateurID)
+    return $query->result();
+}
+
+
+    public function getListCommandes($vaccinateurID,$date_min, $date_max)
 
     {      
-             $query = $this->db->select('*')
+            $query = $this->db->select('*')
             ->from($this->table_status_commande)
             ->join('reservations', 'reservations.id_res = status_cmd.resStatusCmdID', 'left')
              ->join('cat_vaccins', 'cat_vaccins.id_cat_vaccins = reservations.catVaccinsResID', 'left')
             ->join('sous_vaccins', 'sous_vaccins.id_sous_vaccins = reservations.sousVaccinsResID', 'left')
             ->join('patients', 'patients.id_patients = reservations.patientsResId', 'left')
-             ->join('communes', 'communes.id_commune = reservations.communesResID', 'left')
+            ->join('communes', 'communes.id_commune = reservations.communesResID', 'left')
             ->join('quartiers', 'quartiers.id_quartiers = reservations.quartiersResID', 'left')
             ->join('vaccinateurs', 'vaccinateurs.id_vaccinateurs = reservations.agentsVaccinsFk', 'left')
             ->where('status_cmd.etat_status_cmd', 'A')
-            ->where('status_cmd.status_status_cmd', 'P')
-            ->where('status_cmd.date_initiale_deb >=', date('Y-m-d 00:00:00', strtotime("monday this week")))
-            ->where('status_cmd.date_initiale_end <=', date('Y-m-d 23:59:59'))
+            ->where('status_cmd.status_status_cmd', 'S')
+            ->where('status_cmd.date_initiale_deb >=', $date_min)
+            ->where('status_cmd.date_initiale_deb <=', $date_max)
             ->where('reservations.agentsVaccinsFk', $vaccinateurID)
-            ->order_by("reservations.id_res","desc")
+            ->order_by("reservations.id_res","asc")
             ->get();
         
         return $query->result();
     }
 
-    public function getListCommandes($vaccinateurID,$date_min, $date_max)
+
+ public function getAllCommandes($vaccinateurID)
 
     {      
              $query = $this->db->select('*')
@@ -434,8 +562,6 @@ $parentResID, $typeResVaccins)
             ->join('quartiers', 'quartiers.id_quartiers = reservations.quartiersResID', 'left')
             ->join('vaccinateurs', 'vaccinateurs.id_vaccinateurs = reservations.agentsVaccinsFk', 'left')
             ->where('status_cmd.etat_status_cmd', 'A')
-            ->where('status_cmd.date_initiale_deb >=', $date_min)
-            ->where('status_cmd.date_initiale_deb <=', $date_max)
             ->where('reservations.agentsVaccinsFk', $vaccinateurID)
             ->order_by("reservations.id_res","desc")
             ->get();
@@ -447,21 +573,23 @@ $parentResID, $typeResVaccins)
     public function getListCommandesEnCoursByAgents($vaccinateurID,$date_min, $date_max)
 
     {      
+
              $query = $this->db->select('*')
             ->from($this->table_status_commande)
             ->join('reservations', 'reservations.id_res = status_cmd.resStatusCmdID', 'left')
             ->join('patients', 'patients.id_patients = reservations.patientsResId', 'left')
             ->join('cat_vaccins', 'cat_vaccins.id_cat_vaccins = reservations.catVaccinsResID', 'left')
-             ->join('communes', 'communes.id_commune = reservations.communesResID', 'left')
+            ->join('communes', 'communes.id_commune = reservations.communesResID', 'left')
             ->join('quartiers', 'quartiers.id_quartiers = reservations.quartiersResID', 'left')
             ->join('sous_vaccins', 'sous_vaccins.id_sous_vaccins = reservations.sousVaccinsResID', 'left')
             ->join('vaccinateurs', 'vaccinateurs.id_vaccinateurs = reservations.agentsVaccinsFk', 'left')
             ->where('status_cmd.etat_status_cmd', 'A')
-            ->where('status_cmd.status_status_cmd', 'P')
+            ->where_in('status_cmd.status_status_cmd', ['P', 'L'])
+           // ->where('reservations.status_res !=', 'S')
             ->where('status_cmd.date_initiale_deb >=', $date_min)
             ->where('status_cmd.date_initiale_deb <=', $date_max)
             ->where('reservations.agentsVaccinsFk', $vaccinateurID)
-            ->order_by("reservations.id_res","desc")
+            ->order_by("reservations.date_res_deb","asc")
             ->get();
         
         return $query->result();
@@ -480,10 +608,35 @@ $parentResID, $typeResVaccins)
             ->join('quartiers', 'quartiers.id_quartiers = reservations.quartiersResID', 'left')
             ->join('patients', 'patients.id_patients = reservations.patientsResId', 'left')
             ->join('vaccinateurs', 'vaccinateurs.id_vaccinateurs = reservations.agentsVaccinsFk', 'left')
-            ->where('status_cmd.etat_status_cmd', 'A')
-            ->where('status_cmd.status_status_cmd', 'S')
+            ->where('reservations.etat_res','A')
+            ->where('reservations.status_res','S')
+            ->where('status_cmd.status_status_cmd','S')
             ->where('reservations.agentsVaccinsFk', $vaccinateurID)
-            ->order_by("reservations.id_res","desc")
+            ->order_by("reservations.date_res_deb","asc")
+            ->get();
+        
+        return $query->result();
+    }
+
+
+  public function getAllCommandesByAgent($vaccinateurID)
+
+    {      
+             $query = $this->db->select('*')
+            ->from($this->table_status_commande)
+            ->join('reservations', 'reservations.id_res = status_cmd.resStatusCmdID', 'left')
+             ->join('cat_vaccins', 'cat_vaccins.id_cat_vaccins = reservations.catVaccinsResID', 'left')
+            ->join('sous_vaccins', 'sous_vaccins.id_sous_vaccins = reservations.sousVaccinsResID', 'left')
+            ->join('communes', 'communes.id_commune = reservations.communesResID', 'left')
+            ->join('quartiers', 'quartiers.id_quartiers = reservations.quartiersResID', 'left')
+            ->join('patients', 'patients.id_patients = reservations.patientsResId', 'left')
+            ->join('vaccinateurs', 'vaccinateurs.id_vaccinateurs = reservations.agentsVaccinsFk', 'left')
+            ->where('reservations.etat_res','A')
+            ->where('status_cmd.etat_status_cmd','A')
+           /* ->where('reservations.status_res','S')
+            ->where('status_cmd.status_status_cmd','S'*/
+            ->where('reservations.agentsVaccinsFk', $vaccinateurID)
+            ->order_by("reservations.id_res","asc")
             ->get();
         
         return $query->result();
@@ -754,86 +907,256 @@ $parentResID, $typeResVaccins)
 
     }
 
-     public function reporterCommandes($id_res)
-    {  
        
-       $req = $this->db->set('status_status_cmd', 'R')
-                       ->set('date_maj_status_cmd', date("Y-m-d H:i:s"))
-                       ->where('status_cmd.resStatusCmdID', $id_res)
-                       ->update($this->table_status_commande);
 
-       if ($req) 
+      public function reporterCommandes($id_res, $vaccinateursFk, $date_create_status_cmd, $motifStatusCmdID)
+    {  
+
+       $req1 = $this->db->set('status_status_cmd', 'P')
+                        ->set('etat_status_cmd', 'I')
+                        ->set('date_maj_status_cmd', date("Y-m-d H:i:s"))
+                        ->where('resStatusCmdID', $id_res)
+                        ->where('status_status_cmd', 'P')
+                        ->where('etat_status_cmd', 'A')
+                        ->update($this->table_status_commande);
+
+       if ($req1) 
        {
-           return $this->db->set('etatVaccinations', 'I')
-                           ->set('dateMajVaccinations', date("Y-m-d H:i:s"))
-                           ->where('reservationsFk', $id_res)
-                           ->update($this->table_vaccinations);
+            $req2 = $this->db->set('status_status_cmd', 'R')
+                             ->set('etat_status_cmd', 'A')
+                             ->set('details_status_cmd', 'REPORTER')
+                             ->set('vaccinateursFk', $vaccinateursFk)
+                             ->set('date_maj_status_cmd', date("Y-m-d H:i:s"))
+                             ->set('date_create_status_cmd', $date_create_status_cmd)
+                             ->set('resStatusCmdID', $id_res)
+                             ->set('motifStatusCmdID', $motifStatusCmdID)
+                             ->insert($this->table_status_commande);
+
+            if ($req2) 
+           {
+               return $this->db->set('status_res', 'R')
+                               ->set('date_maj_res', date("Y-m-d H:i:s"))
+                               ->set('date_res_deb', NULL)
+                               ->set('date_res_end', NULL)
+                               ->where('id_res', $id_res)
+                               ->update($this->table_reservations);
+           }
+           else
+           {
+                return FALSE;
+           }
+
        }
        else
        {
             return FALSE;
        }
-
+    
     }
 
-    public function transfererCommandes($id_res)
-    {  
-       
-       $req = $this->db->set('status_status_cmd', 'T')
-                       ->set('date_maj_status_cmd', date("Y-m-d H:i:s"))
-                       ->where('status_cmd.resStatusCmdID', $id_res)
-                       ->update($this->table_status_commande);
 
-       if ($req) 
+
+    /* public function transfererCommandes($id_res, $vaccinateursFk,$date_create_status_cmd, $motifStatusCmdID)
+    {  
+
+        $reservation = $this->db->get_where($this->table_reservations, ['id_res' => $id_res])->row();
+        $date_res_deb = $reservation ? $reservation->date_res_deb : null;
+        $date_res_end = $reservation ? $reservation->date_res_end : null;
+
+
+       $req1 = $this->db->set('status_status_cmd', 'P')
+                        ->set('etat_status_cmd', 'I')
+                        ->set('date_maj_status_cmd', date("Y-m-d H:i:s"))
+                        ->set('date_res_deb', $date_res_deb)  
+                        ->set('date_res_end', $date_res_end)
+                        ->where('resStatusCmdID', $id_res)
+                        ->where('status_status_cmd', 'P')
+                        ->where('etat_status_cmd', 'A')
+                        ->update($this->table_status_commande);
+
+       if ($req1) 
        {
-           return $this->db->set('etatVaccinations', 'I')
-                           ->set('dateMajVaccinations', date("Y-m-d H:i:s"))
-                           ->where('reservationsFk', $id_res)
-                           ->update($this->table_vaccinations);
+            $req2 = $this->db->set('status_status_cmd', 'T')
+                             ->set('etat_status_cmd', 'A')
+                             ->set('vaccinateursFk', NULL)
+                             ->set('motifStatusCmdID', $motifStatusCmdID)
+                             ->set('details_status_cmd', 'TRANSFERER')
+                             ->set('date_maj_status_cmd', date("Y-m-d H:i:s"))
+                             ->set('date_create_status_cmd', $date_create_status_cmd)
+                             ->set('resStatusCmdID', $id_res)
+                             ->insert($this->table_status_commande);
+
+            if ($req2) 
+           {
+               return $this->db->set('status_res', 'T')
+                               ->set('date_maj_res', date("Y-m-d H:i:s"))
+                               ->set('agentsVaccinsFk', NULL)
+                               ->where('id_res', $id_res)
+                               ->update($this->table_reservations);
+           }
+           else
+           {
+                return FALSE;
+           }
+
        }
        else
        {
             return FALSE;
        }
-
+    
     }
+*/
 
-    public function enCoursDetraitementCommandes($id_res)
+    public function transfererCommandes($id_res, $vaccinateursFk, $date_create_status_cmd, $motifStatusCmdID)
+{
+   
+    $reservation = $this->db->get_where($this->table_reservations, ['id_res' => $id_res])->row();
+    $date_res_deb = $reservation ? $reservation->date_res_deb : null;
+    $date_res_end = $reservation ? $reservation->date_res_end : null;
+
+    
+    $req1 = $this->db->set('status_status_cmd', 'P')
+                     ->set('etat_status_cmd', 'I')
+                     ->set('date_maj_status_cmd', date("Y-m-d H:i:s"))
+                     ->where('resStatusCmdID', $id_res)
+                     ->where('status_status_cmd', 'P')
+                     ->where('etat_status_cmd', 'A')
+                     ->update($this->table_status_commande);
+
+    if (!$req1) return FALSE;
+
+   
+    $req2 = $this->db->set('status_status_cmd', 'T')
+                     ->set('etat_status_cmd', 'A')
+                     ->set('vaccinateursFk', NULL)
+                     ->set('motifStatusCmdID', $motifStatusCmdID)
+                     ->set('details_status_cmd', 'TRANSFERER')
+                     ->set('date_maj_status_cmd', date("Y-m-d H:i:s"))
+                     ->set('date_create_status_cmd', $date_create_status_cmd)
+                     ->set('date_initiale_deb', $date_res_deb)
+                     ->set('date_initiale_end', $date_res_end)
+                     ->set('resStatusCmdID', $id_res)
+                     ->insert($this->table_status_commande);
+
+    if (!$req2) return FALSE;
+
+    
+    return $this->db->set('status_res', 'T')
+                    ->set('date_maj_res', date("Y-m-d H:i:s"))
+                    ->set('agentsVaccinsFk', NULL)
+                    ->set('date_res_deb', $date_res_deb)   
+                    ->set('date_res_end', $date_res_end)   
+                    ->where('id_res', $id_res)
+                    ->update($this->table_reservations);
+}
+
+
+    public function enCoursDetraitementCommandesOLD($id_res)
     {  
        
-       $req = $this->db->set('status_status_cmd', 'L')
+        $this->db->set('status_status_cmd', 'L')
                        ->set('date_maj_status_cmd', date("Y-m-d H:i:s"))
                        ->where('status_cmd.resStatusCmdID', $id_res)
                        ->update($this->table_status_commande);
-
-       if ($req) 
-       {
-           return $this->db->set('etatVaccinations', 'I')
-                           ->set('dateMajVaccinations', date("Y-m-d H:i:s"))
-                           ->where('reservationsFk', $id_res)
-                           ->update($this->table_vaccinations);
-       }
-       else
-       {
-            return FALSE;
-       }
-
     }
+
+
+    public function commandeTraitement($id_res, $vaccinateurID, $date_create_status_cmd, $date_initiale_deb , $date_initiale_end)
+{ 
+    
+    $req1 = $this->db->set('status_status_cmd', 'P')
+                     ->set('etat_status_cmd', 'I')
+                     ->set('date_maj_status_cmd', date("Y-m-d H:i:s"))
+                     ->where('resStatusCmdID', $id_res)
+                     ->where('status_status_cmd', 'P')
+                     ->where('etat_status_cmd', 'A')
+                     ->update($this->table_status_commande);
+
+    if ($req1) 
+    {
+       
+        $req2 = $this->db->set('status_status_cmd', 'L')
+                         ->set('etat_status_cmd', 'A')
+                         ->set('details_status_cmd', 'TRAITEMENT')
+                         ->set('date_maj_status_cmd', date("Y-m-d H:i:s"))
+                         ->set('date_initiale_deb', $date_initiale_deb)
+                         ->set('date_initiale_end', $date_initiale_end)
+                         ->set('date_create_status_cmd', $date_create_status_cmd)
+                         ->set('resStatusCmdID', $id_res)
+                         ->set('vaccinateursFk', $vaccinateurID)
+                         ->insert($this->table_status_commande);
+
+       
+       if ($req2) {
+
+    // Récupérer patient associé à la réservation
+    $row = $this->db->select('patientsResId')
+                    ->from($this->table_reservations)
+                    ->where('id_res', $id_res)
+                    ->get()
+                    ->row();
+
+    if ($row && isset($row->patientsResId)) {
+        $patientID = $row->patientsResId;
+
+        // Insérer la position initiale de l'agent
+        $this->db->set('agentsVaccinateursPositionID', $vaccinateurID)
+                 ->set('patientPositionsID', $patientID)
+                 ->set('resPositionID', $id_res)
+                 ->set('latitude_agent_positions', '0')  
+                 ->set('longitude_agent_positions', '0') 
+                 ->set('etat_agents_position', 'A')
+                 ->set('date_create_agents_positions', date("Y-m-d H:i:s"))
+                 ->insert($this->table_agents_position);
+    }
+}
+}
+
+   
+    if ($req2) {
+        $req3 = $this->db->set('status_res', 'L')
+                         ->set('date_maj_res', date("Y-m-d H:i:s"))
+                         ->where('id_res', $id_res)
+                         ->update($this->table_reservations);
+    }
+
+    if (!isset($req3) || !$req3) {
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+
+
+
 
     public function validerCommandes($id_res)
     {  
-       
-       $req = $this->db->set('status_status_cmd', 'S')
+
+       $req1 = $this->db->set('etat_status_cmd', 'S')
                        ->set('date_maj_status_cmd', date("Y-m-d H:i:s"))
-                       ->where('status_cmd.resStatusCmdID', $id_res)
+                       ->where('etat_status_cmd', 'A')
+                       ->where('resStatusCmdID', $id_res)
                        ->update($this->table_status_commande);
 
-       if ($req) 
+       if ($req1) 
        {
-           return $this->db->set('etatVaccinations', 'I')
-                           ->set('dateMajVaccinations', date("Y-m-d H:i:s"))
-                           ->where('reservationsFk', $id_res)
-                           ->update($this->table_vaccinations);
+            $req2 =  $this->db->set('etat_status_cmd', 'S')
+                       ->set('date_maj_status_cmd', date("Y-m-d H:i:s"))
+                       ->set('etat_status_cmd', 'A')
+                       ->set('resStatusCmdID', $id_res)
+                       ->insert($this->table_status_commande);
+       }
+
+       
+       if ($req2) 
+       {
+           return $this->db->set('status_res', 'S')
+                           ->set('date_maj_res', date("Y-m-d H:i:s"))
+                           ->where('id_res', $id_res)
+                           ->update($this->table_reservations);
        }
        else
        {
@@ -841,5 +1164,6 @@ $parentResID, $typeResVaccins)
        }
 
     }
+
     }
     ?>

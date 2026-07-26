@@ -172,16 +172,6 @@
                             ->insert($this->table_connexion);
         }
 
-
-        public function createConnectiviteV($vaccinateurConnexionID)
-        {           
-            return $this->db->set('vaccinateurConnexionID', $vaccinateurConnexionID)
-                            ->set('etatConnexion', 'A')
-                            ->set('dateCreateConnexion', date("Y-m-d H:i:s"))
-                            ->insert($this->table_connexion);
-        }
-
-
          public function getConnectivites($usersConnexionId)
         { 
              return $this->db->select('*')
@@ -192,12 +182,19 @@
                              ->row();   
         }
 
+         public function createConnectiviteV($usersConnexionId)
+        {           
+            return $this->db->set('vaccinateursConnexionID', $usersConnexionId)
+                            ->set('etatConnexion', 'A')
+                            ->set('dateCreateConnexion', date("Y-m-d H:i:s"))
+                            ->insert($this->table_connexion);
+        }
 
-          public function getConnectivitesV($vaccinateurConnexionID)
+         public function getConnectivitesV($usersConnexionId)
         { 
              return $this->db->select('*')
                              ->from($this->table_connexion)
-                             ->where('vaccinateurConnexionID', $vaccinateurConnexionID)
+                             ->where('vaccinateursConnexionID', $usersConnexionId)
                              ->where('etatConnexion', 'A')
                              ->get()
                              ->row();   
@@ -212,12 +209,35 @@
                             ->insert($this->table_reinitialize);
         }
 
+
+        public function createReinitializeV($usersID, $usersTypeID)
+        {           
+            return $this->db->set('usersTypeID', $usersTypeID)
+                            ->set('usersID', $usersID)
+                            ->set('etatReinitialize', 'A')
+                            ->set('date_create_reinit', date("Y-m-d H:i:s"))
+                            ->insert($this->table_reinitialize);
+        }
+
         public function getUsersByReinitialize($usersID)
         { 
              return $this->db->select('count(idReinitialize) as nombre')
                              ->from($this->table_reinitialize)
                              ->where('usersID', $usersID)
                              ->where('usersTypeID', "P")
+                             ->where('etatReinitialize', "A")
+                             ->where('date_create_reinit >=', date('Y-m-d 00:00:00'))
+                             ->where('date_create_reinit <=', date('Y-m-d 23:59:59'))
+                             ->get()
+                             ->row();   
+        }
+
+         public function getAgentByReinitialize($usersID)
+        { 
+             return $this->db->select('count(idReinitialize) as nombre')
+                             ->from($this->table_reinitialize)
+                             ->where('usersID', $usersID)
+                             ->where('usersTypeID', "A")
                              ->where('etatReinitialize', "A")
                              ->where('date_create_reinit >=', date('Y-m-d 00:00:00'))
                              ->where('date_create_reinit <=', date('Y-m-d 23:59:59'))
@@ -256,7 +276,7 @@
             curl_setopt($ch, CURLOPT_RETURNTRANSFER,true);
             curl_setopt($ch, CURLOPT_POST, 1);
             curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-            curl_setopt($ch, CURLOPT_USERPWD, "8f5cd707703db5a0c38fba60c77b5190:21b836e44c7ec5f7080f9a52f44967d0");
+            curl_setopt($ch, CURLOPT_USERPWD, ":");
             curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($paramsend));
             $response = json_decode(curl_exec($ch));
             $err = curl_error($ch);
